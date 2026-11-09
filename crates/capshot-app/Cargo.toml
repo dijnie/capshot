@@ -25,12 +25,13 @@ smallvec = "1"
 [package.metadata.packager]
 product-name = "capshot"
 identifier = "com.capshot.app"
-category = "Graphics"
+category = "Graphics and Design"
 description = "Capture, annotate and beautify screenshots"
 copyright = "Copyright (c) 2026 capshot contributors; derived from winshot (c) 2025 mrgoonie"
 license-file = "../../LICENSE"
 out-dir = "../../dist"
 binaries = [{ path = "capshot", main = true }]
+before-packaging-command = "cargo build --release -p capshot-app"
 icons = ["../../assets/icons/icon-32.png", "../../assets/icons/icon-128.png", "../../assets/icons/icon-256.png", "../../assets/icons/icon-512.png", "../../assets/icons/icon.ico"]
 
 [package.metadata.packager.macos]
