@@ -20,7 +20,10 @@ struct Session {
 
 type SharedSession = Rc<RefCell<Session>>;
 
-fn finish(session: &SharedSession, result: Option<RgbaImage>, cx: &mut App) {
+/// Close every overlay and hand the result to the editor. `current` is the
+/// overlay whose event triggered this: GPUI cannot update a window from inside
+/// its own event handler, so that one is closed directly.
+fn finish(session: &SharedSession, result: Option<RgbaImage>, current: Option<&mut Window>, cx: &mut App) {
     let (windows, main, main_window) = {
         let mut s = session.borrow_mut();
         if s.finished {
@@ -29,8 +32,14 @@ fn finish(session: &SharedSession, result: Option<RgbaImage>, cx: &mut App) {
         s.finished = true;
         (std::mem::take(&mut s.windows), s.main.clone(), s.main_window)
     };
+    let current_handle = current.as_ref().map(|w| w.window_handle());
     for w in windows {
-        let _ = w.update(cx, |_, window, _| window.remove_window());
+        if Some(w) != current_handle {
+            let _ = w.update(cx, |_, window, _| window.remove_window());
+        }
+    }
+    if let Some(window) = current {
+        window.remove_window();
     }
     let _ = main_window.update(cx, |_, window, cx| {
         window.activate_window();
@@ -82,7 +91,7 @@ pub fn open(shots: Vec<DisplayCapture>, main: WeakEntity<MainView>, main_window:
         }
     }
     if session.borrow().windows.is_empty() {
-        finish(&session, None, cx);
+        finish(&session, None, None, cx);
     }
 }
 
@@ -154,9 +163,9 @@ impl Render for RegionOverlay {
             .size_full()
             .relative()
             .cursor(CursorStyle::Crosshair)
-            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
                 if ev.keystroke.key == "escape" {
-                    finish(&this.session.clone(), None, cx);
+                    finish(&this.session.clone(), None, Some(window), cx);
                 }
             }))
             .on_mouse_down(
@@ -169,8 +178,8 @@ impl Render for RegionOverlay {
             )
             .on_mouse_down(
                 MouseButton::Right,
-                cx.listener(|this, _: &MouseDownEvent, _, cx| {
-                    finish(&this.session.clone(), None, cx);
+                cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                    finish(&this.session.clone(), None, Some(window), cx);
                 }),
             )
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _, cx| {
@@ -185,7 +194,7 @@ impl Render for RegionOverlay {
                     this.end = Some(ev.position);
                     let result = this.selection().and_then(|s| this.crop(s, window));
                     if result.is_some() {
-                        finish(&this.session.clone(), result, cx);
+                        finish(&this.session.clone(), result, Some(window), cx);
                     } else {
                         this.start = None;
                         this.end = None;
