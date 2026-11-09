@@ -28,7 +28,7 @@ log = "0.4"
 anyhow = "1"
 
 # Platform
-xcap = "0.9"
+xcap = "=0.9.8"  # 0.9.9 does not compile on Linux (ashpd 0.14 renamed SourceType::Monitor)
 arboard = { version = "3.7", features = ["wayland-data-control"] }
 global-hotkey = "0.9"
 tray-icon = "0.26"
