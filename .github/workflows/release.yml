@@ -15,8 +15,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # MSI (wix) needs a purely numeric version; add it for stable tags later.
           - os: windows-latest
-            formats: nsis,wix
+            formats: nsis
           - os: macos-latest
             formats: dmg
           - os: ubuntu-24.04
@@ -41,7 +42,9 @@ jobs:
         shell: bash
         run: |
           v="${GITHUB_REF_NAME#v}"
-          sed -i.bak "0,/^version = \".*\"/s//version = \"$v\"/" Cargo.toml && rm Cargo.toml.bak
+          # First `version = "…"` is [workspace.package]; perl works on every runner.
+          perl -0pi -e "s/^version = \".*?\"/version = \"$v\"/m" Cargo.toml
+          grep -m1 '^version' Cargo.toml
       - run: cargo install cargo-packager --locked
       - name: Package
         shell: bash
