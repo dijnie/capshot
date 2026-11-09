@@ -1,0 +1,73 @@
+name: Release
+
+# Push a tag like v0.2.0 (stable) or v0.2.0-beta.1 (pre-release).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            formats: nsis,wix
+          - os: macos-latest
+            formats: dmg
+          - os: ubuntu-24.04
+            formats: deb,appimage
+    runs-on: ${{ matrix.os }}
+    env:
+      # Lets the built app check this repository for updates.
+      CAPSHOT_UPDATE_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libxkbcommon-x11-dev libwayland-dev \
+            libxcb1-dev libxcb-randr0-dev libxcb-shm0-dev libxrandr-dev libfontconfig-dev libfreetype-dev \
+            libvulkan-dev libssl-dev libdbus-1-dev libpipewire-0.3-dev libgbm-dev libegl1-mesa-dev \
+            libxdo-dev libgtk-3-dev
+      - name: Set version from tag
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          sed -i.bak "0,/^version = \".*\"/s//version = \"$v\"/" Cargo.toml && rm Cargo.toml.bak
+      - run: cargo install cargo-packager --locked
+      - name: Package
+        shell: bash
+        run: cargo packager --release -p capshot-app --formats ${{ matrix.formats }}
+        env:
+          # Optional macOS signing and notarization; unsigned when absent.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Sign Windows installers
+        if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERT_PFX))
+          Get-ChildItem dist -Include *.exe,*.msi -Recurse | ForEach-Object {
+            & signtool sign /f cert.pfx /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+          }
+          Remove-Item cert.pfx
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true

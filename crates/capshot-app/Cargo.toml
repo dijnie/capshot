@@ -1,0 +1,41 @@
+[package]
+name = "capshot-app"
+description = "capshot desktop app (GPUI)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "capshot"
+path = "src/main.rs"
+
+[dependencies]
+capshot-core.workspace = true
+capshot-platform.workspace = true
+capshot-cloud.workspace = true
+gpui-kit.workspace = true
+anyhow.workspace = true
+log.workspace = true
+image.workspace = true
+chrono.workspace = true
+smallvec = "1"
+
+# Installers via cargo-packager (see .github/workflows/release.yml).
+[package.metadata.packager]
+product-name = "capshot"
+identifier = "com.capshot.app"
+category = "Graphics"
+description = "Capture, annotate and beautify screenshots"
+copyright = "Copyright (c) 2026 capshot contributors; derived from winshot (c) 2025 mrgoonie"
+license-file = "../../LICENSE"
+out-dir = "../../dist"
+binaries = [{ path = "capshot", main = true }]
+icons = ["../../assets/icons/icon-32.png", "../../assets/icons/icon-128.png", "../../assets/icons/icon-256.png", "../../assets/icons/icon-512.png", "../../assets/icons/icon.ico"]
+
+[package.metadata.packager.macos]
+minimum-system-version = "13.0"
+info-plist-path = "../../packaging/macos/Info.plist"
+
+[package.metadata.packager.deb]
+depends = ["libxkbcommon-x11-0", "libwayland-client0", "libvulkan1", "libdbus-1-3"]

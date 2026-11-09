@@ -1,0 +1,22 @@
+[package]
+name = "capshot-cloud"
+description = "Cloud upload (Cloudflare R2, Google Drive), secrets and update checks for capshot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+capshot-core.workspace = true
+keyring.workspace = true
+reqwest.workspace = true
+rusty-s3.workspace = true
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
+semver.workspace = true
+url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+log.workspace = true

@@ -1,0 +1,21 @@
+[package]
+name = "capshot-core"
+description = "Document model, compositor, export and config for capshot. No UI or OS dependencies."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tiny-skia.workspace = true
+cosmic-text.workspace = true
+image.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+directories.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>capshot needs Screen Recording access to take screenshots.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>capshot uses Accessibility access for global capture shortcuts.</string>
+</dict>
+</plist>
