@@ -29,6 +29,21 @@ Useful for trying changes on a Windows desktop from Linux. Not used for releases
 
 Without `--whole-archive` the manifest resource is dropped and the exe exits with `0xC0000139` before `main`.
 
+### Release builds without the Windows SDK
+
+GPUI's release mode embeds shaders compiled by `fxc.exe`. Without the SDK, compile them on any
+Windows machine with `d3dcompiler_47.dll` (part of Windows) through a small tool that calls
+`D3DCompileFromFile` with `/O3`-equivalent flags. Write one `const <MODULE>_<VERTEX|FRAGMENT>_BYTES: &[u8] = &[...]`
+per stage into `shaders_bytes.rs`. Then build against a local copy of `gpui-pre-windows` whose
+`build.rs` copies that file into `OUT_DIR`:
+
+```sh
+GPUI_PREBUILT_SHADERS=/path/shaders_bytes.rs RC=llvm-rc cargo build --release -p capshot-app \
+  --target x86_64-pc-windows-gnu --config "patch.crates-io.gpui-pre-windows.path='/path/gpui-pre-windows'"
+```
+
+The resulting exe is self-contained and starts from any folder.
+
 ## Releases
 
 Push a tag `vX.Y.Z` (or `vX.Y.Z-beta.N` for a pre-release). `.github/workflows/release.yml`

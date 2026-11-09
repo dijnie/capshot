@@ -1,5 +1,8 @@
 //! capshot: capture, annotate and export screenshots.
 
+// Release builds are GUI apps on Windows: no console window on launch.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 mod actions;
 mod assets;
 mod capture_flow;
