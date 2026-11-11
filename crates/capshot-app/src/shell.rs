@@ -98,13 +98,75 @@ fn dispatch(cmd: Command, cx: &mut App) {
     }
 }
 
-/// Run a capture, opening the main window first if it is closed to the tray.
+/// What to grab.
+#[derive(Clone, Copy)]
+pub enum CaptureJob {
+    Fullscreen,
+    Region,
+    Window(u32),
+}
+
+/// Time for the editor window to get out of the way before capturing.
+const HIDE_DELAY: Duration = Duration::from_millis(400);
+
+/// Start a capture from a hotkey, the tray, the command line or a button.
+/// Only the window picker needs the editor window.
 pub fn capture(mode: CaptureMode, cx: &mut App) {
-    with_view(cx, move |view, window, cx| match mode {
-        CaptureMode::Fullscreen => crate::capture_flow::fullscreen(window, cx),
-        CaptureMode::Region => crate::capture_flow::region(window, cx),
-        CaptureMode::Window => crate::capture_flow::open_window_picker(view, window, cx),
-    });
+    match mode {
+        CaptureMode::Fullscreen => start_capture(CaptureJob::Fullscreen, cx),
+        CaptureMode::Region => start_capture(CaptureJob::Region, cx),
+        CaptureMode::Window => with_view(cx, crate::capture_flow::open_window_picker),
+    }
+}
+
+/// Capture without bringing up the editor first. If the editor window is open
+/// it is minimised out of the shot; if capshot sits in the tray nothing is
+/// shown until there is a result. Must not be called from inside the editor
+/// window's own event handlers (use `cx.defer`).
+pub fn start_capture(job: CaptureJob, cx: &mut App) {
+    let existing = cx.global::<Shell>().window;
+    let was_open = existing.is_some_and(|h| h.update(cx, |_, window, _| window.minimize_window()).is_ok());
+    cx.spawn(async move |cx| {
+        use capshot_platform::capture as cap;
+        if was_open {
+            cx.background_executor().timer(HIDE_DELAY).await;
+        }
+        match job {
+            CaptureJob::Region => {
+                let shots = cx.background_spawn(async { cap::capture_all_displays() }).await;
+                cx.update(|cx| match shots {
+                    Ok(shots) => crate::overlay::open(shots, was_open, cx),
+                    Err(e) => report(format!("Region capture failed: {e}"), cx),
+                });
+            }
+            CaptureJob::Fullscreen | CaptureJob::Window(_) => {
+                let label = if matches!(job, CaptureJob::Fullscreen) { "Fullscreen" } else { "Window" };
+                let result = cx
+                    .background_spawn(async move {
+                        match job {
+                            CaptureJob::Window(id) => cap::capture_window(id),
+                            _ => cap::capture_virtual_screen(),
+                        }
+                    })
+                    .await;
+                cx.update(|cx| match result {
+                    Ok(img) => deliver(img, label, cx),
+                    Err(e) => report(format!("{label} capture failed: {e}"), cx),
+                });
+            }
+        }
+    })
+    .detach();
+}
+
+/// Open the editor with a captured image.
+pub fn deliver(img: image::RgbaImage, label: &'static str, cx: &mut App) {
+    with_view(cx, move |view, window, cx| view.load_image(img, label, window, cx));
+}
+
+/// Show the editor with a status message.
+pub fn report(msg: String, cx: &mut App) {
+    with_view(cx, move |view, _, cx| view.set_status(msg, cx));
 }
 
 /// Show the main window, then run `f` on the view inside it.

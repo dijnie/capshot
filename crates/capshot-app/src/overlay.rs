@@ -1,7 +1,6 @@
 //! Region selection: one borderless top-most window per display showing the
 //! frozen capture. Drag to select, release to finish, Esc to cancel.
 
-use crate::main_view::MainView;
 use capshot_platform::capture::DisplayCapture;
 use gpui_kit::*;
 use image::RgbaImage;
@@ -13,8 +12,8 @@ const SELECTION_BLUE: u32 = 0x3b82f6;
 
 struct Session {
     windows: Vec<AnyWindowHandle>,
-    main: WeakEntity<MainView>,
-    main_window: AnyWindowHandle,
+    /// The editor was open before the capture; bring it back on cancel.
+    restore_on_cancel: bool,
     finished: bool,
 }
 
@@ -24,13 +23,13 @@ type SharedSession = Rc<RefCell<Session>>;
 /// overlay whose event triggered this: GPUI cannot update a window from inside
 /// its own event handler, so that one is closed directly.
 fn finish(session: &SharedSession, result: Option<RgbaImage>, current: Option<&mut Window>, cx: &mut App) {
-    let (windows, main, main_window) = {
+    let (windows, restore) = {
         let mut s = session.borrow_mut();
         if s.finished {
             return;
         }
         s.finished = true;
-        (std::mem::take(&mut s.windows), s.main.clone(), s.main_window)
+        (std::mem::take(&mut s.windows), s.restore_on_cancel)
     };
     let current_handle = current.as_ref().map(|w| w.window_handle());
     for w in windows {
@@ -41,12 +40,12 @@ fn finish(session: &SharedSession, result: Option<RgbaImage>, current: Option<&m
     if let Some(window) = current {
         window.remove_window();
     }
-    let _ = main_window.update(cx, |_, window, cx| {
-        window.activate_window();
-        let _ = main.update(cx, |m, cx| match result {
-            Some(img) => m.load_image(img, "Region", window, cx),
-            None => m.set_status("Region capture cancelled", cx),
-        });
+    // After this overlay's event handler returns: a selection opens the editor;
+    // a cancel leaves a tray-only capshot hidden.
+    cx.defer(move |cx| match result {
+        Some(img) => crate::shell::deliver(img, "Region", cx),
+        None if restore => crate::shell::report("Region capture cancelled".into(), cx),
+        None => {}
     });
 }
 
@@ -62,8 +61,8 @@ fn match_display(shot: &DisplayCapture, cx: &App) -> Option<Rc<dyn PlatformDispl
     })
 }
 
-pub fn open(shots: Vec<DisplayCapture>, main: WeakEntity<MainView>, main_window: AnyWindowHandle, cx: &mut App) {
-    let session = Rc::new(RefCell::new(Session { windows: Vec::new(), main, main_window, finished: false }));
+pub fn open(shots: Vec<DisplayCapture>, restore_on_cancel: bool, cx: &mut App) {
+    let session = Rc::new(RefCell::new(Session { windows: Vec::new(), restore_on_cancel, finished: false }));
     for shot in shots {
         let Some(display) = match_display(&shot, cx) else { continue };
         let options = WindowOptions {

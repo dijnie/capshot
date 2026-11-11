@@ -63,7 +63,9 @@ fn main() {
         }
     });
 
-    let start_hidden = config.startup.minimize_to_tray && cli.capture.is_none() && initial.is_none();
+    // A capture requested on the command line shows the editor only once there
+    // is a result.
+    let start_hidden = (config.startup.minimize_to_tray || cli.capture.is_some()) && initial.is_none();
     gpui_kit::application().with_assets(assets::Assets).with_quit_mode(QuitMode::Explicit).run(move |cx| {
         gpui_kit::init(cx);
         actions::bind_keys(cx);

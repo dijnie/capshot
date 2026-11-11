@@ -98,11 +98,11 @@ impl Render for WindowPicker {
                                     .truncate()
                                     .child(format!("{} · {}×{}", w.app_name, w.width, w.height)),
                             )
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                let main = this.main.clone();
+                            .on_click(cx.listener(move |this, _, _, cx| {
                                 this.close(cx);
-                                let _ =
-                                    main.update(cx, |_m, cx| crate::capture_flow::capture_window_by_id(id, window, cx));
+                                cx.defer(move |cx| {
+                                    crate::shell::start_capture(crate::shell::CaptureJob::Window(id), cx)
+                                });
                             })),
                     );
                 }

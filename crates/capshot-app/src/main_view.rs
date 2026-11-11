@@ -518,21 +518,16 @@ impl MainView {
         let theme = cx.theme();
         h_flex_bar(theme.title_bar, theme.border)
             .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).mr_3().child("capshot"))
-            .child(
-                Button::new("cap-full")
-                    .icon(IconName::Monitor)
-                    .label("Fullscreen")
-                    .small()
-                    .primary()
-                    .on_click(cx.listener(|_, _, window, cx| capture_flow::fullscreen(window, cx))),
-            )
-            .child(
-                Button::new("cap-region")
-                    .icon(IconName::SquareDashed)
-                    .label("Region")
-                    .small()
-                    .on_click(cx.listener(|_, _, window, cx| capture_flow::region(window, cx))),
-            )
+            .child(Button::new("cap-full").icon(IconName::Monitor).label("Fullscreen").small().primary().on_click(
+                cx.listener(|_, _, _, cx| {
+                    cx.defer(|cx| crate::shell::start_capture(crate::shell::CaptureJob::Fullscreen, cx))
+                }),
+            ))
+            .child(Button::new("cap-region").icon(IconName::SquareDashed).label("Region").small().on_click(
+                cx.listener(|_, _, _, cx| {
+                    cx.defer(|cx| crate::shell::start_capture(crate::shell::CaptureJob::Region, cx))
+                }),
+            ))
             .child(
                 Button::new("cap-window")
                     .icon(IconName::AppWindow)
